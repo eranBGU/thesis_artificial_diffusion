@@ -1,4 +1,5 @@
 % 2D diffusion equation
+% git push to push the folder into github
 clc, clear, close all;
 
 %% Simulation Parameters
@@ -128,3 +129,4 @@ contourf(X,Y,cmap,[10000,9999.9999999,9999.99999,9999.9999,9999.999,9999.99,  99
 hold on     
 gr=plot(X(R.vinx),Y(R.vinx),'k','LineWidth',1.5);
 xlabel('x[m]'); ylabel('y[m]')
+
