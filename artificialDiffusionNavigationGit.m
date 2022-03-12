@@ -1,5 +1,5 @@
 % 2D diffusion equation
-% git push to push the folder into github
+% !git push %to push the folder into github
 clc, clear, close all;
 
 %% Simulation Parameters
