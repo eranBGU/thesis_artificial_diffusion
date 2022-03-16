@@ -1,16 +1,16 @@
 % 2D diffusion equation
 % !git push %to push the folder into github
 clc, clear, close all;
+Lx = 1;                             % plate width (m)
 
 %% Simulation Parameters
-Lx = 1;                             % plate width (m)
 Ly = 1;                             % plate length (m)
 nx = 80;                         % number of nodes in x direction
-ny = nx;                            % number of nodes in y direction 
+ny = nx;                            % number of nodes in y direction                                                                             מממממממממממממממ  מנהמצת‚צמ 
 x = linspace(0,Lx,nx);
 y = linspace(0,Ly,ny);
 
-[Y,X] = meshgrid(y,x);              % generate 2D mesh
+[Y,X] = meshgrid(y,x);              % generate 2D   
 
 D = 1;                              % diffusion constant
 
