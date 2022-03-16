@@ -1,9 +1,9 @@
 % 2D diffusion equation
 % !git push %to push the folder into github
 clc, clear, close all;
-Lx = 1;                             % plate width (m)
 
 %% Simulation Parameters
+Lx = 1;                             % plate width (m)
 Ly = 1;                             % plate length (m)
 nx = 80;                         % number of nodes in x direction
 ny = nx;                            % number of nodes in y direction                                                                             מממממממממממממממ  מנהמצת‚צמ 
@@ -25,15 +25,17 @@ T.conc = -10000;
 % Targets location
 T_loc(1,:) = [0.611 0.611];
 T_loc(2,:) = [0.611 0.111]; % Second target
+T_loc(3,:) = [0.111 0.111]; % 3rd target
 [~,T.locidx(:,1)] = min(abs(x-T_loc(:,1)),[],2); % x closest location in the mesh
 [~,T.locidx(:,2)] = min(abs(y-T_loc(:,2)),[],2); % y closest location in the mesh
 T.loc(:,1) = x(T.locidx(:,1));
 T.loc(:,2) = y(T.locidx(:,2));
-ntarget = size(T_loc,1);
+nT = size(T_loc,1);
 
 % Robots location
 R_loc = [0.311 0.411];
-R_loc(2,:) = [0.811 0.111]; % Second robot
+R_loc(2,:) = [0.311 0.111]; % Second robot
+R_loc(3,:) = [0.911 0.001]; % 3rd robot
 [~,R.locidx(:,1)] = min(abs(x-R_loc(:,1)),[],2); % x closest location in the mesh
 [~,R.locidx(:,2)] = min(abs(y-R_loc(:,2)),[],2); % y closest location in the mesh
 R.loc(:,1) = x(R.locidx(:,1));
@@ -52,16 +54,16 @@ for iobsplot =2:length(O)
 end
 
 % Calculate all the indexes 
-calc_idx = ones(numel(x),numel(y),ntarget);
+calc_idx = ones(numel(x),numel(y),nT);
 calc_idx(1:length(x),1,:) = 0;                % borders
 calc_idx(1:length(x),end,:) = 0;              % borders
 calc_idx(1,1:length(y),:) = 0;                % borders
 calc_idx(end,1:length(y),:) = 0;              % borders
-calc_idx(repmat(in_obs,ntarget,1))=0;                         % Obstacles
+calc_idx(repmat(in_obs,nT,1))=0;                         % Obstacles
 
 % Concentration Map
-cmap = c_init.*ones(numel(x),numel(y),ntarget);
-for imap = 1:ntarget
+cmap = c_init.*ones(numel(x),numel(y),nT);
+for imap = 1:nT
 cmap(T.locidx(imap,1),T.locidx(imap,2),imap)=T.conc;
 calc_idx(T.locidx(imap,1),T.locidx(imap,2),imap) = 0;  % target location
 end
@@ -104,7 +106,7 @@ cmapvec(run_idx) = 0.25*(cmapvec(run_idx-1)+cmapvec(run_idx+1)+cmapvec(run_idx-n
     end
     it = it+1;
 end
-cmap = reshape(cmapvec,nx,ny,ntarget);
+cmap = reshape(cmapvec,nx,ny,nT);
 
 %% Plot navigation map
 figure(2)
@@ -114,26 +116,33 @@ xlabel('x[m]'); ylabel('y[m]');zlabel('Conc[M]')
 
 %% Robot navigation
 isoutTarget = 1;
-ri = 1; %robot location iteration
-%% צריך לסדר ניווט של הרובוט השני למפה השנייה!!!!
-R(1).vinx = sub2ind(size(cmap),R.locidx(1),R.locidx(2)); %locidx(3) is the vectorize index of the robot
-dir.vec = [0; 1; -1; nx; nx+1; nx-1; -nx; -nx+1; -nx-1];
+ri = 1; %robot location running index
+
+R.vinx(1,:) = sub2ind(size(cmap),R.locidx(:,1),R.locidx(:,2))'; %locidx(3) is the vectorize index of the robot
+R.vinx(1,2:end) = R.vinx(1,2:end)+nx*ny.*(1:nT-1); % converting to vector shape requires the addition of values to the robots that are greater than 1     
+dir.vec = [0, 1, -1, nx, nx+1, nx-1, -nx, -nx+1, -nx-1];
 while isoutTarget
-    [~,dir.idx] = min([cmapvec(R(1).vinx(ri)); cmapvec(R(1).vinx(ri)+1); cmapvec(R(1).vinx(ri)-1);...
-        cmapvec(R(1).vinx(ri)+nx); cmapvec(R(1).vinx(ri)+nx+1); cmapvec(R(1).vinx(ri)+nx-1);...
-        cmapvec(R(1).vinx(ri)-nx); cmapvec(R(1).vinx(ri)-nx+1); cmapvec(R(1).vinx(ri)-nx-1)]);
-    R(1).vinx(ri+1,1) = R(1).vinx(ri,1)+dir.vec(dir.idx);
-    if R(1).vinx(ri+1,1) == R(1).vinx(ri,1)
+    [~,dir.idx] = min([cmapvec(R(1).vinx(ri,:))'; cmapvec(R(1).vinx(ri,:)+1)'; cmapvec(R(1).vinx(ri,:)-1)';...
+                       cmapvec(R(1).vinx(ri,:)+nx)'; cmapvec(R(1).vinx(ri,:)+nx+1)'; cmapvec(R(1).vinx(ri,:)+nx-1)';...
+                       cmapvec(R(1).vinx(ri,:)-nx)'; cmapvec(R(1).vinx(ri,:)-nx+1)'; cmapvec(R(1).vinx(ri,:)-nx-1)']);
+    R(1).vinx(ri+1,:) = R(1).vinx(ri,:)+dir.vec(dir.idx);
+    if R(1).vinx(ri+1,:) == R(1).vinx(ri,:)
         isoutTarget = 0;
     end
     ri =ri+1;
 end
+
+R.vinx(:,2:end) = R.vinx(:,2:end)-nx*ny.*(1:nT-1); % converting to vector shape requires the addition of values to the robots that are greater than 1     
+
 %% Plotting robot path on cmap
 figure(3)
-set(gca,'ColorScale','log')
-colormap('white')
-contourf(X,Y,cmap(:,:,1),[10000,9999.9999999,9999.99999,9999.9999,9999.999,9999.99,  9999, 9990, 9900, 9000, 100,10,-3000, -10000])
-hold on     
-gr=plot(X(R.vinx),Y(R.vinx),'k','LineWidth',1.5);
-xlabel('x[m]'); ylabel('y[m]')
-
+for iplot = 1 : nT
+    subplot(1,nT,iplot)
+    hold on
+    set(gca,'ColorScale','log')
+    colormap('white')
+    contourf(X,Y,cmap(:,:,iplot),[10000,9999.9999999,9999.99999,9999.9999,9999.999,9999.99,  9999, 9990, 9900, 9000, 100,10,-3000, -10000])
+    plot(X(R.vinx(:,iplot)),Y(R.vinx(:,iplot)),'k','LineWidth',1.5);
+    xlabel('x[m]'); ylabel('y[m]')
+    axis equal
+end
