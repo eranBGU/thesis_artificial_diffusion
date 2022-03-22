@@ -28,6 +28,7 @@ T_loc(3,:) = [0.111 0.111]; % 3rd target
 T.loc(:,1) = x(T.locidx(:,1));
 T.loc(:,2) = y(T.locidx(:,2));
 nT = size(T_loc,1);
+T.vinx = sub2ind([nx ny nT],T.locidx(:,1),T.locidx(:,2))'+nx*ny*(0:1:nT-1);
 
 % Robots location
 R_loc = [0.311 0.411];
@@ -107,7 +108,7 @@ cmap = reshape(cmapvec,nx,ny,nT);
 
 %% Plot navigation map
 figure(2)
-surf(X,Y,cmap(:,:,1));
+surf(X,Y,cmap(:,:,3));
 % zlim([0.99999999e+4 1e+4])
 xlabel('x[m]'); ylabel('y[m]');zlabel('Conc[M]')
 
@@ -115,15 +116,15 @@ xlabel('x[m]'); ylabel('y[m]');zlabel('Conc[M]')
 isoutTarget = 1;
 ri = 1; %robot location running index
 
-R.vinx(1,:) = sub2ind(size(cmap),R.locidx(:,1),R.locidx(:,2))'; %locidx(3) is the vectorize index of the robot
+R.vinx(1,:) = sub2ind([nx ny nT],R.locidx(:,1),R.locidx(:,2))'; %locidx(3) is the vectorize index of the robot
 R.vinx(1,2:end) = R.vinx(1,2:end)+nx*ny.*(1:nT-1); % converting to vector shape requires the addition of values to the robots that are greater than 1     
-dir.vec = [0, 1, -1, nx, nx+1, nx-1, -nx, -nx+1, -nx-1];
+dir.vec = [0, 1, -1, nx, nx+1, nx-1, -nx, -nx+1, -nx-1]; % This vector determines all directions of motion of the robot
 while isoutTarget
     [~,dir.idx] = min([cmapvec(R(1).vinx(ri,:))'; cmapvec(R(1).vinx(ri,:)+1)'; cmapvec(R(1).vinx(ri,:)-1)';...
                        cmapvec(R(1).vinx(ri,:)+nx)'; cmapvec(R(1).vinx(ri,:)+nx+1)'; cmapvec(R(1).vinx(ri,:)+nx-1)';...
                        cmapvec(R(1).vinx(ri,:)-nx)'; cmapvec(R(1).vinx(ri,:)-nx+1)'; cmapvec(R(1).vinx(ri,:)-nx-1)']);
     R(1).vinx(ri+1,:) = R(1).vinx(ri,:)+dir.vec(dir.idx);
-    if R(1).vinx(ri+1,:) == R(1).vinx(ri,:)
+    if R.vinx(ri+1,:) == T.vinx
         isoutTarget = 0;
     end
     ri =ri+1;

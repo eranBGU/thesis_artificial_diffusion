@@ -90,6 +90,9 @@ while isoutTarget && it <= 1e+4 %for a big nx we need more it to get the SS
         cmapvec(R(1).vinx(it,:)+nx)'; cmapvec(R(1).vinx(it,:)+nx+1)'; cmapvec(R(1).vinx(it,:)+nx-1)';...
         cmapvec(R(1).vinx(it,:)-nx)'; cmapvec(R(1).vinx(it,:)-nx+1)'; cmapvec(R(1).vinx(it,:)-nx-1)']);
     R(1).vinx(it+1,:) = R(1).vinx(it,:)+dir.vec(dir.idx);
+    % adding robots as obstacles 
+    % !!! adding a fitcher of end calculating concentration map after the robot
+    % arive the its target!!!
     if R.vinx(it+1,:) == T.vinx
         isoutTarget = 0;
     end
