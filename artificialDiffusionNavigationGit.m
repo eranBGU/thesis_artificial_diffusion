@@ -5,22 +5,19 @@ clc, clear, close all;
 %% Simulation Parameters
 Lx = 1;                             % plate width (m)
 Ly = 1;                             % plate length (m)
-nx = 80;                         % number of nodes in x direction
+nx = 50;                         % number of nodes in x direction
 ny = nx;                            % number of nodes in y direction                                                                             מממממממממממממממ  מנהמצת‚צמ 
 x = linspace(0,Lx,nx);
 y = linspace(0,Ly,ny);
-
 [Y,X] = meshgrid(y,x);              % generate 2D   
-
-D = 1;                              % diffusion constant
-
-tolerence = 0.5;                   % tolerence for numerical simulation (0.5 Molar*)
+% D = 1;                              % diffusion constant
+% tolerence = 0.5;                   % tolerence for numerical simulation (0.5 Molar*)
 error_ss = 1e-4;%0.01;               % tolerence for steady state section (0.01 Molar*)
 
 %% Initial Conditions
 c_init = 10000 ;                   % Initial concentration in all nodes ( the whole plate )
 c_bound = c_init ;                 % Concentraiton on the boundary conditions ("Dirichlet Conditions" )
-T.conc = -10000;
+T.conc = -c_init;
 
 % Targets location
 T_loc(1,:) = [0.611 0.611];
@@ -80,8 +77,8 @@ for iobsplot =1:length(O)
     plot(O(iobsplot).obs,'FaceColor','red');
 end
 
-plot(R.loc(:,1),R.loc(:,2),'go') % Robot location
-plot(T.loc(:,1),T.loc(:,2),'g*') % Target location
+plot(R.loc(:,1),R.loc(:,2),'ko','LineWidth',1) % Robot location
+plot(T.loc(:,1),T.loc(:,2),'k*','LineWidth',1) % Target location
 axis equal
 xlabel('x[m]'); ylabel('y[m]');
 set(gcf,'Color','w')
