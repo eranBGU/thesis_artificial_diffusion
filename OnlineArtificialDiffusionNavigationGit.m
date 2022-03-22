@@ -101,23 +101,4 @@ end
 R.vinx(:,2:end) = R.vinx(:,2:end)-nx*ny.*(1:nT-1); % converting to vector shape requires the addition of values to the robots that are greater than 1     
 
 %% Making video of the robot movement
-v1 = VideoWriter('onlineRobotNavigationStaticMap.avi');
-v1.FrameRate = 5;
-open(v1);
-f4 = figure('Visible','off');
-for iv = 1:10:it
-    hold on
-    for iplot = 1 : nT
-    subplot(1,nT,iplot)
-    hold on
-    set(gca,'ColorScale','log')
-    colormap('white')
-    contourf(X,Y,cmap(:,:,iplot,iv),[10000,9999.9999999,9999.99999,9999.9999,9999.999,9999.99,  9999, 9990, 9900, 9000, 100,10,-3000, -10000])
-    plot(X(R.vinx(1:iv,iplot)),Y(R.vinx(1:iv,iplot)),'k','LineWidth',1.5);
-    xlabel('x[m]'); ylabel('y[m]')
-    axis equal
-    end
-    frame= getframe(f4) ;
-    writeVideo(v1, frame);
-end
-close(v1);
+robotMovementVideo(X,Y,cmap,R.vinx)
