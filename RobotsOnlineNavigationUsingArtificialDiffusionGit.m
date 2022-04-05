@@ -5,8 +5,9 @@ clc, clear, close all;
 %% Simulation Parameters
 Lx = 1;                             % plate width (m)
 Ly = 1;                             % plate length (m)
-nx = 50;                            % number of nodes in x direction
-ny = nx;                            % number of nodes in y direction                                                                             מממממממממממממממ  מנהמצת‚צמ 
+nx = 60;                            % number of nodes in x direction
+ny = nx;                            % number of nodes in y direction  
+np = nx*ny;                         % number of nodes  
 x = linspace(0,Lx,nx);
 y = linspace(0,Ly,ny);
 [Y,X] = meshgrid(y,x);              % generate 2D   
@@ -15,7 +16,7 @@ y = linspace(0,Ly,ny);
 error_oss = 1e-4;%0.01;               % tolerence for steady state section (0.01 Molar*)
 
 %% Initial Conditions
-c_init = 1000000 ;                   % Initial concentration in all nodes ( the whole plate )
+c_init = 10000 ;                   % Initial concentration in all nodes ( the whole plate )
 c_bound = c_init ;                 % Concentraiton on the boundary conditions ("Dirichlet Conditions" )
 T.conc = -c_init;
 
@@ -61,12 +62,12 @@ for iobs =2:length(O)
 end
 
 % Calculate all the indexes 
-calc_idx = ones(numel(x),numel(y),nT);
-calc_idx(1:length(x),1,:) = 0;                % borders
-calc_idx(1:length(x),end,:) = 0;              % borders
-calc_idx(1,1:length(y),:) = 0;                % borders
-calc_idx(end,1:length(y),:) = 0;              % borders
-calc_idx(repmat(in_obs,nT,1))=0;                         % Obstacles
+noObs_idx = ones(numel(x),numel(y),nT);  % Remove Obstacles/Borders/Targets from the calculation node list
+noObs_idx(1:length(x),1,:) = 0;                % borders
+noObs_idx(1:length(x),end,:) = 0;              % borders
+noObs_idx(1,1:length(y),:) = 0;                % borders
+noObs_idx(end,1:length(y),:) = 0;              % borders
+noObs_idx(repmat(in_obs,nT,1))=0;                         % Obstacles
 % calc_idx(in_robot)=0;
 
 % Concentration Map
@@ -75,58 +76,58 @@ for imap = 1:nT
 R_running_index = 1:nT;
 R_running_index = R_running_index(R_running_index~=imap); % remove the ith robot from the list
 cmapmat(T.locidx(imap,1),T.locidx(imap,2),imap)=T.conc;
-calc_idx(T.locidx(imap,1),T.locidx(imap,2),imap) = 0;  % target location
+noObs_idx(T.locidx(imap,1),T.locidx(imap,2),imap) = 0;  % target location
 % calc_idx(R.locidx(imap,1),R.locidx(imap,2),imap) = 0;
 end
-
-nonObs_idx = find(calc_idx ~= 0);              %finding all the indexs without boundary condition
+noObs_idx = find(noObs_idx ~= 0);              %finding all the indexs without boundary condition
 
 %% Online concentrations calculation and Robots Navigation:
-cnorm = zeros(1e+4,1);  % for measure the online error from SS
-cnorm(1) = norm(cmapmat(:));
-cmapvec =cmapmat(:);
-R.vinx(1,:) = sub2ind(size(cmapmat),R.locidx(:,1),R.locidx(:,2))'; %locidx(3) is the vectorize index of the robot
+
+% cnorm = zeros(1e+4,1);  % for measure the online error from SS
+% cnorm(1) = norm(cmapmat(:));
+% norm_iteration = 10;
+% isoutSS = 1;
+
+cmapvec =cmapmat(:); % matrix to vector
+R.vinx(1,:) = sub2ind(size(cmapmat),R.locidx(:,1),R.locidx(:,2))'; %robots location in matrix configuration to vectorize-robot location
 R.vinx(1,2:end) = R.vinx(1,2:end)+nx*ny.*(1:nT-1); % converting to vector shape requires the addition of values to the robots that are greater than 1     
 dir.vec = [0, 1, -1, nx, nx+1, nx-1, -nx, -nx+1, -nx-1]; % This vector determines all directions of motion of the robot
 
 it = 1; 
-isoutSS = 1;
 isoutTarget = 1;
-norm_iteration = 10;
-calcRob_idx = calc_idx;
+calcinrobot_idx = ones(numel(x),numel(y),nT); %PreAllocation
+robotInTarget_idx =[]; %contain all the nodes inside robots that are in there targets
 
-while isoutTarget && it <= 1e+4 %for a big nx we need more it to get the SS
-    calcRob_idx = ones(numel(x),numel(y),nT);
-    calcRob_idx(in_robot)=0;
-%     cmapvec(calcRob_idx) = c_init;
-    inrobot_idx = find(calcRob_idx == 0);
-    cmapvec(inrobot_idx) = c_init;
-    run_idx =nonObs_idx; 
-    cmapvec(run_idx) = 0.25*(cmapvec(run_idx-1)+cmapvec(run_idx+1)+cmapvec(run_idx-nx)+cmapvec(run_idx+nx));
+while isoutTarget && it <= 1e+4 %for a big number of nx, it sould be bigger for SS-convergence
+    % Add robots as obstacles:
+    calcinrobot_idx(:) = 1;
+    calcinrobot_idx(in_robot)=0;
+    inrobot_idx = find(calcinrobot_idx == 0);
+    cmapvec(setdiff(inrobot_idx,robotInTarget_idx)) = c_bound;  % Currently the code stops updating robots that have arrived. Not sure this is the right thing to do. To change it change the line to - cmapvec(setdiff(inrobot_idx)) = c_bound;  
+    
+    run_idx =setdiff(noObs_idx,[inrobot_idx;robotInTarget_idx]); %run_idx contains all the nodes at which the concentration calculation will be made
+    cmapvec(run_idx) = 0.25*(cmapvec(run_idx-1)+cmapvec(run_idx+1)+cmapvec(run_idx-nx)+cmapvec(run_idx+nx));  %concentration map gauss seidel method
     [~,dir.idx] = min([cmapvec(R.vinx(it,:))'; cmapvec(R.vinx(it,:)+1)'; cmapvec(R.vinx(it,:)-1)';...
         cmapvec(R.vinx(it,:)+nx)'; cmapvec(R.vinx(it,:)+nx+1)'; cmapvec(R.vinx(it,:)+nx-1)';...
-        cmapvec(R.vinx(it,:)-nx)'; cmapvec(R.vinx(it,:)-nx+1)'; cmapvec(R.vinx(it,:)-nx-1)']);
-    R.vinx(it+1,:) = R.vinx(it,:)+dir.vec(dir.idx);
+        cmapvec(R.vinx(it,:)-nx)'; cmapvec(R.vinx(it,:)-nx+1)'; cmapvec(R.vinx(it,:)-nx-1)']);  
+    R.vinx(it+1,:) = R.vinx(it,:)+dir.vec(dir.idx);  % robot navigation by gradient descent
     
-    % Add robots as obstacles:
-    onlineObs_idx = [];
-    R.vreal = R.vinx;
-    R.vreal(:,2:end) = R.vinx(:,2:end)-nx*ny.*(1:nT-1);
-    for imap = 1:nT
-        R_running_index = 1:nT;
-        R_running_index = R_running_index(R_running_index~=imap)-1; % remove the ith robot from the list
-        onlineObs_idx = [onlineObs_idx;(repmat(R.vreal(it,imap),nT-1,1)+nx*ny*R_running_index')];
-    end
-    cmapvec(onlineObs_idx) = c_bound;
-    % !!! adding a fitcher of end calculating concentration map after the robot
-    % arive the its target!!!
-    if R.vinx(it+1,:) == T.vinx
-        isoutTarget = 0;
+    R.vreal = R.vinx; %R.vreal  show the real index of the ith-robot lovation
+    R.vreal(:,2:end) = R.vinx(:,2:end)-nx*ny.*(1:nT-1); 
+
+    check_robintar = R.vinx(it+1,:) == T.vinx; %if the ith-robots in its target the ith-check_robintar = 1
+    if any(check_robintar) % if one of check_robintar elements are not 0
+        i_robintar = find(check_robintar);
+        robotInTarget_idx = (1:np)'+np*(i_robintar-1);
+        robotInTarget_idx =robotInTarget_idx(:);
+        
+        if any(~check_robintar)==0 % if all check_robintar elements are 1 finish the while loop
+            isoutTarget = 0;
+        end
     end
     it = it+1;
     cmapmat(:,:,:,it) = reshape(cmapvec,nx,ny,nT);
     [R,in_robot] = isinRobot_online(R,X,Y,nT);
-
 end
 
 cmap = cmapmat(:,:,:,end);
@@ -134,10 +135,21 @@ R.vinx(:,2:end) = R.vinx(:,2:end)-nx*ny.*(1:nT-1); % converting to vector shape 
 
 %% Plot 2D Mesh
 figure(1)
+plotMesh(X,Y,R,T,O,in_obs,in_robot,nx,ny,nT)
+
+%% %% Plotting robot path on cmap
+figure(2)
+cmapPath(X,Y,R,cmap,nT,c_init)
+
+%% Making video of the robot movement
+robotMovementVideo(X,Y,cmapmat,R.vinx,c_init)
+
+%% Functions
+function [] = plotMesh(X,Y,R,T,O,in_obs,in_robot,nx,ny,nT)
 hold on
 plot(X(in_obs),Y(in_obs),'r+') % points inside
 plot(X(~in_obs),Y(~in_obs),'b+') % points outside
-plot(X(in_robot(1:nx*ny)),Y(in_robot(1:nx*ny)),'Y+') % point inside the robot
+plot(X(in_robot(1:nx*ny)),Y(in_robot(1:nx*ny)),'w+') % point inside the robot
 plot(X(in_robot(nx*ny+1:2*nx*ny)),Y(in_robot(nx*ny+1:2*nx*ny)),'w+') % point inside the robot
 
 for iobs =1:length(O)
@@ -154,24 +166,21 @@ axis equal
 xlabel('x[m]'); ylabel('y[m]');
 set(gcf,'Color','w')
 hold off
+end
 
-%% %% Plotting robot path on cmap
-figure(3)
+function [] = cmapPath(X,Y,R,cmap,nT,c_init)
 for iplot = 1 : nT
-    subplot(1,nT,iplot)
+    subplot(2,ceil(nT/2),iplot)
     hold on
     set(gca,'ColorScale','log')
     colormap('white')
-    contourf(X,Y,cmap(:,:,iplot),[10000,9999.9999999,9999.99999,9999.9999,9999.999,9999.99,  9999, 9990, 9900, 9000, 100,10,-3000, -10000]*100)
+    contourf(X,Y,cmap(:,:,iplot),[1,0.99999999999999999,0.99999999999,0.999999999,0.99999999,0.9999999, 0.999999,  0.9999, 0.9990, 0.9900, 0.9000, 0.0100,0.0010,-0.3000, -1.0000]*c_init)
     plot(X(R.vinx(:,iplot)),Y(R.vinx(:,iplot)),'k','LineWidth',1.5);
     xlabel('x[m]'); ylabel('y[m]')
     axis equal
 end
+end
 
-%% Making video of the robot movement
-robotMovementVideo(X,Y,cmapmat,R.vinx)
-
-%% Functions
 function [R,in_robot] = isinRobot_online(R,X,Y,nT)
 in_robot = zeros(numel(X),nT); % if the i-th point in the mesh is inside robot location than in_robot(i)=1
 Tvec = 1:nT;

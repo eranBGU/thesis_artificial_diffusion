@@ -1,4 +1,4 @@
-function [] = robotMovementVideo(X,Y,cmap,pathidx)
+function [] = robotMovementVideo(X,Y,cmap,pathidx,c_init)
 %UNTITLED Summary of this function goes here
 %   cmap - 4D vector 
 filestr = strcat('C:\Users\nisse\Desktop\Studies\Master\thesis\other topics\Artificial Acoustic Field for path planning\code\video\onlineObstaclesRobotNavigation',date,'.avi');
@@ -8,15 +8,15 @@ open(v1);
 f4 = figure('Visible','off');
 nT = size(cmap,3);
 time = size(cmap,4);
-for iv = 1:4:time
+for iv = 1:10:time
     iv
     hold on
     for iplot = 1 : nT
-    subplot(1,nT,iplot)
+    subplot(2,ceil(nT/2),iplot);
     hold on
     set(gca,'ColorScale','log')
     colormap('white')
-    contourf(X,Y,cmap(:,:,iplot,iv),[10000,9999.9999999,9999.99999,9999.9999,9999.999,9999.99,  9999, 9990, 9900, 9000, 100,10,-3000, -10000]*100)
+    contourf(X,Y,cmap(:,:,iplot,iv),[1,0.99999999999999999,0.99999999999,0.999999999,0.99999999,0.9999999, 0.999999,  0.9999, 0.9990, 0.9900, 0.9000, 0.0100,0.0010,-0.3000, -1.0000]*c_init)
     plot(X(pathidx(1:iv,iplot)),Y(pathidx(1:iv,iplot)),'k','LineWidth',1.5);
     xlabel('x[m]'); ylabel('y[m]')
     axis equal
