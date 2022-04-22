@@ -17,30 +17,27 @@ error_oss = 1e-4;%0.01;               % tolerence for steady state section (0.01
 
 %% Initial Conditions
 c_init = 10000 ;                   % Initial concentration in all nodes ( the whole plate )
-c_bound = c_init ;                 % Concentraiton on the boundary conditions ("Dirichlet Conditions" )
+c_bound = 10000 ;                 % Concentraiton on the boundary conditions ("Dirichlet Conditions" )
 T.conc = -c_init;
 
 % Targets location
+%----------------------%
 T_loc(1,:) = [0.611 0.611];
 T_loc(2,:) = [0.611 0.111]; % Second target
 T_loc(3,:) = [0.111 0.111]; % 3rd target
 % T_loc(4,:) = [0.021 0.021]; % 3rd target
 nT = size(T_loc,1);
-[~,T.locidx(:,1)] = min(abs(x-T_loc(:,1)),[],2); % x closest location in the mesh
-[~,T.locidx(:,2)] = min(abs(y-T_loc(:,2)),[],2); % y closest location in the mesh
-T.loc(:,1) = x(T.locidx(:,1));
-T.loc(:,2) = y(T.locidx(:,2));
-T.vinx = sub2ind([nx ny nT],T.locidx(:,1),T.locidx(:,2))'+nx*ny*(0:1:nT-1);
+T = target_location(T,T_loc,x,y);
+%----------------------%
 
 % Robots location
+%----------------------%
 R_loc = [0.311 0.411];
 R_loc(2,:) = [0.311 0.111]; % Second robot
 R_loc(3,:) = [0.911 0.001]; % 3rd robot
-% R_loc(4,:) = [0.901 0.901]; % 3rd robot
-[~,R.locidx(:,1)] = min(abs(x-R_loc(:,1)),[],2); % x closest location in the mesh
-[~,R.locidx(:,2)] = min(abs(y-R_loc(:,2)),[],2); % y closest location in the mesh
-R.loc(:,1) = x(R.locidx(:,1));
-R.loc(:,2) = y(R.locidx(:,2));
+% R_loc(4,:) = [0.901 0.901]; % 4rd robot
+R = robot_location(R_loc,x,y);
+%----------------------%
 
 % Robots shape
 R.size(1,:) = [0.1 0.14]/2;
@@ -48,46 +45,21 @@ R.size(2,:) = [0.1 0.12]/2;
 R.size(3,:) = [0.1 0.15]/2;
 % R.size(4,:) = [0.05 0.05]/2;
 [R,in_robot] = isinRobot(R,X,Y,nT);
-
+%----------------------%
 
 % Obstacles location
-O.borders = [0 0 Lx Lx ; 0 Ly Ly 0];
-O(1).obs = polyshape([0.45 0.45 0.55 0.55],[0.03 0.8 0.8 0.03]);
-O(2).obs = polyshape([0.05 0.3 0.3 0.05],[0.75 0.75 0.5 0.5]);
-O(3).obs = polyshape([0.1 0.6 0.6 0.1],[0.9 0.9 0.83 0.83]);
+%----------------------%
+O(1) = polyshape([0.45 0.45 0.55 0.55],[0.03 0.8 0.8 0.03]);
+O(2) = polyshape([0.05 0.3 0.3 0.05],[0.75 0.75 0.5 0.5]);
+O(3) = polyshape([0.1 0.6 0.6 0.1],[0.9 0.9 0.83 0.83]);
 
-in_obs = inpolygon(X(:), Y(:), O(1).obs.Vertices(:,1),O(1).obs.Vertices(:,2));
-for iobs =2:length(O)
-    in_obs = in_obs | inpolygon(X(:), Y(:), O(iobs).obs.Vertices(:,1),O(iobs).obs.Vertices(:,2));
-end
+in_obs = isinObstacle(O,X,Y);
+%----------------------%
 
-% Calculate all the indexes 
-noObs_idx = ones(numel(x),numel(y),nT);  % Remove Obstacles/Borders/Targets from the calculation node list
-noObs_idx(1:length(x),1,:) = 0;                % borders
-noObs_idx(1:length(x),end,:) = 0;              % borders
-noObs_idx(1,1:length(y),:) = 0;                % borders
-noObs_idx(end,1:length(y),:) = 0;              % borders
-noObs_idx(repmat(in_obs,nT,1))=0;                         % Obstacles
-% calc_idx(in_robot)=0;
-
-% Concentration Map
-cmapmat = c_init.*ones(numel(x),numel(y),nT);
-for imap = 1:nT
-R_running_index = 1:nT;
-R_running_index = R_running_index(R_running_index~=imap); % remove the ith robot from the list
-cmapmat(T.locidx(imap,1),T.locidx(imap,2),imap)=T.conc;
-noObs_idx(T.locidx(imap,1),T.locidx(imap,2),imap) = 0;  % target location
-% calc_idx(R.locidx(imap,1),R.locidx(imap,2),imap) = 0;
-end
-noObs_idx = find(noObs_idx ~= 0);              %finding all the indexs without boundary condition
+% Calculate no-obstacles indexes and Initical Concentraition Map: 
+[cmapmat,noObs_idx] = initialConcentrationMap(T,x,y,in_obs,c_bound,c_init);
 
 %% Online concentrations calculation and Robots Navigation:
-
-% cnorm = zeros(1e+4,1);  % for measure the online error from SS
-% cnorm(1) = norm(cmapmat(:));
-% norm_iteration = 10;
-% isoutSS = 1;
-
 cmapvec =cmapmat(:); % matrix to vector
 R.vinx(1,:) = sub2ind(size(cmapmat),R.locidx(:,1),R.locidx(:,2))'; %robots location in matrix configuration to vectorize-robot location
 R.vinx(1,2:end) = R.vinx(1,2:end)+nx*ny.*(1:nT-1); % converting to vector shape requires the addition of values to the robots that are greater than 1     
@@ -142,7 +114,7 @@ figure(2)
 cmapPath(X,Y,R,cmap,nT,c_init)
 
 %% Making video of the robot movement
-robotMovementVideo(X,Y,cmapmat,R.vinx,c_init)
+% robotMovementVideo(X,Y,cmapmat,R.vinx,c_init)
 
 %% Functions
 function [] = plotMesh(X,Y,R,T,O,in_obs,in_robot,nx,ny,nT)
@@ -150,10 +122,13 @@ hold on
 plot(X(in_obs),Y(in_obs),'r+') % points inside
 plot(X(~in_obs),Y(~in_obs),'b+') % points outside
 plot(X(in_robot(1:nx*ny)),Y(in_robot(1:nx*ny)),'w+') % point inside the robot
-plot(X(in_robot(nx*ny+1:2*nx*ny)),Y(in_robot(nx*ny+1:2*nx*ny)),'w+') % point inside the robot
+
+if nT > 1
+    plot(X(in_robot(nx*ny+1:2*nx*ny)),Y(in_robot(nx*ny+1:2*nx*ny)),'w+') % point inside the robot
+end
 
 for iobs =1:length(O)
-    plot(O(iobs).obs,'FaceColor','red');
+    plot(O(iobs),'FaceColor','red');
 end
 
 for ir = 1:nT
@@ -179,28 +154,4 @@ for iplot = 1 : nT
     xlabel('x[m]'); ylabel('y[m]')
     axis equal
 end
-end
-
-function [R,in_robot] = isinRobot_online(R,X,Y,nT)
-in_robot = zeros(numel(X),nT); % if the i-th point in the mesh is inside robot location than in_robot(i)=1
-Tvec = 1:nT;
-for ishape = 1:nT
-    R.shape(ishape) = polyshape([X(R.vreal(end,ishape))-R.size(ishape,1), X(R.vreal(end,ishape))-R.size(ishape,1), X(R.vreal(end,ishape))+R.size(ishape,1), X(R.vreal(end,ishape))+R.size(ishape,1)],...
-        [Y(R.vreal(end,ishape))-R.size(ishape,2), Y(R.vreal(end,ishape))+R.size(ishape,2),Y(R.vreal(end,ishape))+R.size(ishape,2), Y(R.vreal(end,ishape))-R.size(ishape,2)]);   
-    in_robot(:,Tvec(Tvec~=ishape)) = in_robot(:,Tvec(Tvec~=ishape)) | repmat(inpolygon(X(:), Y(:), R.shape(ishape).Vertices(:,1), R.shape(ishape).Vertices(:,2)),1,max(nT-1,1)); %find points in the mesh that are inside robots locations
-end
-% in_robot = in_robot';
-in_robot = boolean(in_robot(:));
-end
-
-function [R,in_robot] = isinRobot(R,X,Y,nT)
-in_robot = zeros(numel(X),nT); % if the i-th point in the mesh is inside robot location than in_robot(i)=1
-Tvec = 1:nT;
-for ishape = 1:nT
-    R.shape(ishape) = polyshape([R.loc(ishape,1)-R.size(ishape,1), R.loc(ishape,1)-R.size(ishape,1), R.loc(ishape,1)+R.size(ishape,1), R.loc(ishape,1)+R.size(ishape,1)],...
-        [R.loc(ishape,2)-R.size(ishape,2), R.loc(ishape,2)+R.size(ishape,2), R.loc(ishape,2)+R.size(ishape,2), R.loc(ishape,2)-R.size(ishape,2)]);   
-    in_robot(:,Tvec(Tvec~=ishape)) = in_robot(:,Tvec(Tvec~=ishape)) | repmat(inpolygon(X(:), Y(:), R.shape(ishape).Vertices(:,1), R.shape(ishape).Vertices(:,2)),1,max(nT-1,1)); %find points in the mesh that are inside robots locations
-end
-% in_robot = in_robot';
-in_robot = boolean(in_robot(:));
 end
