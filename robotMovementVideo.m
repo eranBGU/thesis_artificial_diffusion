@@ -10,7 +10,7 @@ set(f4,'PaperPositionMode', 'auto')
 set(f4,'Units','Normalized','Outerposition',[0 0 1 1]);
 nT = size(cmap,3);
 time = size(cmap,4);
-for iv = 1:20:time
+for iv = 1:4:time
     iv
     hold on
     for iplot = 1 : nT
@@ -18,7 +18,7 @@ for iv = 1:20:time
         hold on
         set(gca,'ColorScale','log')
         colormap('white')
-        contourf(X,Y,cmap(:,:,iplot,iv),[1,0.99999999999999999,0.99999999999,0.999999999,0.99999999,0.9999999, 0.999999,  0.9999, 0.9990, 0.9900, 0.9000, 0.0100,0.0010,-0.3000, -1.0000]*c_bound)
+        contourf(X,Y,cmap(:,:,iplot,iv),[1,0.9999999999999998,0.99999999999,0.999999999,0.99999999,0.9999999, 0.999999,  0.9999, 0.9990, 0.9900, 0.9000, 0.0100,0.0010,-0.3000, -1.0000]*c_bound)
         plot(X(pathidx(1:iv,iplot)),Y(pathidx(1:iv,iplot)),'k','LineWidth',1.5);
         xlabel('x[m]'); ylabel('y[m]')
         axis equal

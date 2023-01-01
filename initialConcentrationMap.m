@@ -4,7 +4,7 @@ function [cmapmat,noObs_idx] = initialConcentrationMap(T,x,y,in_obs,c_bound,c_in
 nT = size(T.loc,1);
 nx = size(x,2);
 ny = size(y,2);
-% Calculate all the indexes for conc calculation:
+% Calculate indexes for conc calculation:
 noObs_idx = ones(nx,ny,nT);  % Remove Obstacles/Borders/Targets from the calculation node list
 noObs_idx(1:length(x),1,:) = 0;                % borders
 noObs_idx(1:length(x),end,:) = 0;              % borders
